@@ -73,6 +73,7 @@ with tf.Session() as sess:
             logging.info("epoch {} is done".format(epoch))
             _loss = sess.run(loss) # train loss
 
+'''
             logging.info("# test evaluation")
             _, _eval_summaries = sess.run([eval_init_op, eval_summaries])
             summary_writer.add_summary(_eval_summaries, _gs)
@@ -97,6 +98,7 @@ with tf.Session() as sess:
 
             logging.info("# fall back to train mode")
             sess.run(train_init_op)
+'''
     summary_writer.close()
 
 

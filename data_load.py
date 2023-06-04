@@ -57,8 +57,10 @@ def encode(inp, type, dict):
     list of numbers
     '''
     inp_str = inp.decode("utf-8")
-    if type=="x": tokens = inp_str.split() + ["</s>"]
-    else: tokens = ["<s>"] + inp_str.split() + ["</s>"]
+    if type=="x": 
+        tokens = inp_str.split() + ["</s>"]
+    else: 
+        tokens = ["<s>"] + inp_str.split() + ["</s>"]
 
     x = [dict.get(t, dict["<unk>"]) for t in tokens]
     return x
