@@ -10,12 +10,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import tensorflow_datasets as tfds
 import tensorflow as tf
 
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+# ==================================================================================================================
+# step1, 加载原始数据，tokenization
 
 examples, metadata = tfds.load('ted_hrlr_translate/pt_to_en', with_info=True,
                                as_supervised=True)
@@ -28,22 +33,31 @@ tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
 tokenizer_pt = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
     (pt.numpy() for pt, en in train_examples), target_vocab_size=2**13)
 
+
 sample_string = 'Transformer is awesome.'
 
 tokenized_string = tokenizer_en.encode(sample_string)
 print ('Tokenized string is {}'.format(tokenized_string))
+# Tokenized string is [7915, 1248, 7946, 7194, 13, 2799, 7877]
 
 original_string = tokenizer_en.decode(tokenized_string)
 print ('The original string: {}'.format(original_string))
+# The original string: Transformer is awesome.
 
 assert original_string == sample_string
 
 for ts in tokenized_string:
   print ('{} ----> {}'.format(ts, tokenizer_en.decode([ts])))
 
+
+
+# ==================================================================================================================
+# step2，处理 train 和 val 数据集
+
 BUFFER_SIZE = 20000
 BATCH_SIZE = 64
 
+# pt, en
 def encode(lang1, lang2):
   lang1 = [tokenizer_pt.vocab_size] + tokenizer_pt.encode(
       lang1.numpy()) + [tokenizer_pt.vocab_size+1]
@@ -53,12 +67,12 @@ def encode(lang1, lang2):
   
   return lang1, lang2
 
-
+# 字符串最大长度
 MAX_LENGTH = 40
 
 def filter_max_length(x, y, max_length=MAX_LENGTH):
   return tf.logical_and(tf.size(x) <= max_length,
-                          tf.size(y) <= max_length)
+    tf.size(y) <= max_length)
 
 def tf_encode(pt, en):
   result_pt, result_en = tf.py_function(encode, [pt, en], [tf.int64, tf.int64])
@@ -79,8 +93,10 @@ val_dataset = val_examples.map(tf_encode)
 val_dataset = val_dataset.filter(filter_max_length).padded_batch(BATCH_SIZE)
 
 pt_batch, en_batch = next(iter(val_dataset))
-print(pt_batch, en_batch)
+print("pt_batch: ", pt_batch, "en_batch: ", en_batch)
 
+# ==================================================================================================================
+# step3，positional encode
 
 def get_angles(pos, i, d_model):
   angle_rates = 1 / np.power(10000, (2 * (i//2)) / np.float32(d_model))
@@ -102,8 +118,10 @@ def positional_encoding(position, d_model):
     
   return tf.cast(pos_encoding, dtype=tf.float32)
 
+
 pos_encoding = positional_encoding(50, 512)
-print (pos_encoding.shape)
+print("pos_encoding: ", pos_encoding.shape)
+
 
 plt.pcolormesh(pos_encoding[0], cmap='RdBu')
 plt.xlabel('Depth')
@@ -112,18 +130,20 @@ plt.ylabel('Position')
 plt.colorbar()
 plt.show()
 
-# masking
+
+# ==================================================================================================================
+# step4，masking
 
 def create_padding_mask(seq):
   seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
   
   # 添加额外的维度来将填充加到
-  # 注意力对数（logits）。
+  # 注意力对数（logits）
   return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, seq_len)
 
 
 x = tf.constant([[7, 6, 0, 0, 1], [1, 2, 3, 0, 0], [0, 0, 0, 4, 5]])
-create_padding_mask(x)
+print( x,create_padding_mask(x) )
 
 def create_look_ahead_mask(size):
   mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
@@ -134,13 +154,16 @@ temp = create_look_ahead_mask(x.shape[1])
 print(temp)
 
 
+# ==================================================================================================================
+# step5, MHA
+
 def scaled_dot_product_attention(q, k, v, mask):
   """计算注意力权重。
   q, k, v 必须具有匹配的前置维度。
   k, v 必须有匹配的倒数第二个维度，例如：seq_len_k = seq_len_v。
   虽然 mask 根据其类型（填充或前瞻）有不同的形状，
   但是 mask 必须能进行广播转换以便求和。
-  
+
   参数:
     q: 请求的形状 == (..., seq_len_q, depth)
     k: 主键的形状 == (..., seq_len_k, depth)
@@ -265,6 +288,11 @@ y = tf.random.uniform((1, 60, 512))  # (batch_size, encoder_sequence, d_model)
 out, attn = temp_mha(y, k=y, q=y, mask=None)
 out.shape, attn.shape
 
+
+# ==================================================================================================================
+# step6, FF
+
+
 def point_wise_feed_forward_network(d_model, dff):
   return tf.keras.Sequential([
       tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
@@ -276,7 +304,9 @@ sample_ffn = point_wise_feed_forward_network(512, 2048)
 sample_ffn(tf.random.uniform((64, 50, 512))).shape
 
 
-# 编码与解码
+# ==================================================================================================================
+# step7, 编码与解码
+
 
 print("start encoder and decoder")
 
@@ -450,6 +480,9 @@ output, attn = sample_decoder(tf.random.uniform((64, 26)),
 output.shape, attn['decoder_layer2_block2'].shape
 
 
+# ==================================================================================================================
+# step8, create Transformer
+
 print("Create Transformer")
 
 
@@ -592,6 +625,11 @@ if ckpt_manager.latest_checkpoint:
   ckpt.restore(ckpt_manager.latest_checkpoint)
   print ('Latest checkpoint restored!!')
 
+
+
+# ==================================================================================================================
+# step9, train
+
 EPOCHS = 20
 
 # 该 @tf.function 将追踪-编译 train_step 到 TF 图中，以便更快地
@@ -650,6 +688,10 @@ for epoch in range(EPOCHS):
 
   print ('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
+
+
+# ==================================================================================================================
+# step10, evaluate
 
 print("evaluate")
 
@@ -725,6 +767,10 @@ def plot_attention_weights(attention, sentence, result, layer):
   plt.tight_layout()
   plt.show()
 
+
+
+# ==================================================================================================================
+# step11, test
 
 def translate(sentence, plot=''):
   result, attention_weights = evaluate(sentence)
