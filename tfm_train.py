@@ -24,64 +24,62 @@ from tfm_model import Encoder, Decoder, Transformer, create_padding_mask, create
 # ==================================================================================================================
 # step1, 加载原始数据，tokenization
 
+# examples
 examples, metadata = tfds.load('ted_hrlr_translate/pt_to_en', with_info=True,
                                as_supervised=True)
 train_examples, val_examples = examples['train'], examples['validation']
 
 
+# tokens
 tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
     (en.numpy() for pt, en in train_examples), target_vocab_size=2**13)
-
 tokenizer_pt = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
     (pt.numpy() for pt, en in train_examples), target_vocab_size=2**13)
 
-
+# 测试 token 效果
 sample_string = 'Transformer is awesome.'
-
 tokenized_string = tokenizer_en.encode(sample_string)
 print ('Tokenized string is {}'.format(tokenized_string))
 # Tokenized string is [7915, 1248, 7946, 7194, 13, 2799, 7877]
-
 original_string = tokenizer_en.decode(tokenized_string)
 print ('The original string: {}'.format(original_string))
 # The original string: Transformer is awesome.
-
 assert original_string == sample_string
-
 for ts in tokenized_string:
   print ('{} ----> {}'.format(ts, tokenizer_en.decode([ts])))
 
 
 # ==================================================================================================================
-# step2，处理 train 和 val 数据集
-
-BUFFER_SIZE = 20000
-BATCH_SIZE = 64
+# step，处理 train 和 val 数据集
 
 # pt, en
 def encode(lang1, lang2):
-  lang1 = [tokenizer_pt.vocab_size] + tokenizer_pt.encode(
-      lang1.numpy()) + [tokenizer_pt.vocab_size+1]
+    # 问题：为什么要在 emb最开始加上 vocab_size？
+    lang1 = [tokenizer_pt.vocab_size] + tokenizer_pt.encode(
+        lang1.numpy()) + [tokenizer_pt.vocab_size+1]
 
-  lang2 = [tokenizer_en.vocab_size] + tokenizer_en.encode(
-      lang2.numpy()) + [tokenizer_en.vocab_size+1]
-  
-  return lang1, lang2
+    lang2 = [tokenizer_en.vocab_size] + tokenizer_en.encode(
+        lang2.numpy()) + [tokenizer_en.vocab_size+1]
 
-# 字符串最大长度
-MAX_LENGTH = 40
-
-def filter_max_length(x, y, max_length=MAX_LENGTH):
-  return tf.logical_and(tf.size(x) <= max_length,
-    tf.size(y) <= max_length)
+    return lang1, lang2
 
 def tf_encode(pt, en):
-  result_pt, result_en = tf.py_function(encode, [pt, en], [tf.int64, tf.int64])
-  result_pt.set_shape([None])
-  result_en.set_shape([None])
+    result_pt, result_en = tf.py_function(encode, [pt, en], [tf.int64, tf.int64])
+    result_pt.set_shape([None])
+    result_en.set_shape([None])
 
-  return result_pt, result_en
+    return result_pt, result_en
 
+
+BUFFER_SIZE = 20000
+BATCH_SIZE = 64
+MAX_LENGTH = 40   # 字符串最大长度
+
+def filter_max_length(x, y, max_length=MAX_LENGTH):
+    return tf.logical_and(tf.size(x) <= max_length,
+        tf.size(y) <= max_length)
+
+# tf_encode 的入参与 train_examples 中元素类型匹配
 train_dataset = train_examples.map(tf_encode)
 train_dataset = train_dataset.filter(filter_max_length)
 # 将数据集缓存到内存中以加快读取速度。
@@ -98,9 +96,10 @@ print("pt_batch: ", pt_batch, "en_batch: ", en_batch)
 
 
 
-print("config hyperparameters")
+# ==================================================================================================================
+# step，创建 Transformer 对象
 
-num_layers = 4
+num_layers = 4      # transformer 的层数
 d_model = 128
 dff = 512
 num_heads = 8
@@ -109,40 +108,28 @@ input_vocab_size = tokenizer_pt.vocab_size + 2
 target_vocab_size = tokenizer_en.vocab_size + 2
 dropout_rate = 0.1
 
-print("optimizer")
+print("after config hyperparameters, create optimizer")
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-  def __init__(self, d_model, warmup_steps=4000):
-    super(CustomSchedule, self).__init__()
-    
-    self.d_model = d_model
-    self.d_model = tf.cast(self.d_model, tf.float32)
+    def __init__(self, d_model, warmup_steps=4000):
+        super(CustomSchedule, self).__init__()
 
-    self.warmup_steps = warmup_steps
-    
-  def __call__(self, step):
-    arg1 = tf.math.rsqrt(tf.cast(step, tf.float32))
-    arg2 = tf.cast(step,tf.float32) * (self.warmup_steps ** -1.5)
-    
-    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+        self.d_model = d_model
+        self.d_model = tf.cast(self.d_model, tf.float32)
 
+        self.warmup_steps = warmup_steps
+
+    def __call__(self, step):
+        arg1 = tf.math.rsqrt(tf.cast(step, tf.float32))
+        arg2 = tf.cast(step,tf.float32) * (self.warmup_steps ** -1.5)
+
+        return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 learning_rate = CustomSchedule(d_model)
-
 optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, 
                                      epsilon=1e-9)
-                                    
-print("after create optimizer")
-
-
-temp_learning_rate_schedule = CustomSchedule(d_model)
-
-plt.plot(temp_learning_rate_schedule(tf.range(40000, dtype=tf.float32)))
-plt.ylabel("Learning Rate")
-plt.xlabel("Train Step")
-
-
-print("loss function and metrics")
+                          
+print("after create optimizer, loss function and metrics")
 
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=True, reduction='none')
@@ -167,20 +154,20 @@ transformer = Transformer(num_layers, d_model, num_heads, dff,
                           rate=dropout_rate)
 
 def create_masks(inp, tar):
-  # 编码器填充遮挡
-  enc_padding_mask = create_padding_mask(inp)
-  
-  # 在解码器的第二个注意力模块使用。
-  # 该填充遮挡用于遮挡编码器的输出。
-  dec_padding_mask = create_padding_mask(inp)
-  
-  # 在解码器的第一个注意力模块使用。
-  # 用于填充（pad）和遮挡（mask）解码器获取到的输入的后续标记（future tokens）。
-  look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
-  dec_target_padding_mask = create_padding_mask(tar)
-  combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
-  
-  return enc_padding_mask, combined_mask, dec_padding_mask
+    # 编码器填充遮挡
+    enc_padding_mask = create_padding_mask(inp)
+
+    # 在解码器的第二个注意力模块使用。
+    # 该填充遮挡用于遮挡编码器的输出。
+    dec_padding_mask = create_padding_mask(inp)
+
+    # 在解码器的第一个注意力模块使用。
+    # 用于填充（pad）和遮挡（mask）解码器获取到的输入的后续标记（future tokens）。
+    look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
+    dec_target_padding_mask = create_padding_mask(tar)
+    combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+
+    return enc_padding_mask, combined_mask, dec_padding_mask
 
 checkpoint_path = "./checkpoints/train"
 
@@ -191,9 +178,8 @@ ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
 
 # 如果检查点存在，则恢复最新的检查点。
 if ckpt_manager.latest_checkpoint:
-  ckpt.restore(ckpt_manager.latest_checkpoint)
-  print ('Latest checkpoint restored!!')
-
+    ckpt.restore(ckpt_manager.latest_checkpoint)
+    print ('Latest checkpoint restored!!')
 
 
 # ==================================================================================================================
@@ -213,50 +199,50 @@ train_step_signature = [
 
 @tf.function(input_signature=train_step_signature)
 def train_step(inp, tar):
-  tar_inp = tar[:, :-1]
-  tar_real = tar[:, 1:]
-  
-  enc_padding_mask, combined_mask, dec_padding_mask = create_masks(inp, tar_inp)
-  
-  with tf.GradientTape() as tape:
-    predictions, _ = transformer(inp, tar_inp, 
-                                 True, 
-                                 enc_padding_mask, 
-                                 combined_mask, 
-                                 dec_padding_mask)
-    loss = loss_function(tar_real, predictions)
+    tar_inp = tar[:, :-1]
+    tar_real = tar[:, 1:]
 
-  gradients = tape.gradient(loss, transformer.trainable_variables)    
-  optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))
-  
-  train_loss(loss)
-  train_accuracy(tar_real, predictions)
+    enc_padding_mask, combined_mask, dec_padding_mask = create_masks(inp, tar_inp)
+
+    with tf.GradientTape() as tape:
+        predictions, _ = transformer(inp, tar_inp, 
+                                    True, 
+                                    enc_padding_mask, 
+                                    combined_mask, 
+                                    dec_padding_mask)
+        loss = loss_function(tar_real, predictions)
+
+    gradients = tape.gradient(loss, transformer.trainable_variables)    
+    optimizer.apply_gradients(zip(gradients, transformer.trainable_variables))
+
+    train_loss(loss)
+    train_accuracy(tar_real, predictions)
+
 
 for epoch in range(EPOCHS):
-  start = time.time()
+    start = time.time()
+
+    train_loss.reset_states()
+    train_accuracy.reset_states()
   
-  train_loss.reset_states()
-  train_accuracy.reset_states()
-  
-  # inp -> portuguese, tar -> english
-  for (batch, (inp, tar)) in enumerate(train_dataset):
-    train_step(inp, tar)
-    
-    if batch % 50 == 0:
-      print ('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
-          epoch + 1, batch, train_loss.result(), train_accuracy.result()))
+    # inp -> portuguese, tar -> english
+    for (batch, (inp, tar)) in enumerate(train_dataset):
+        train_step(inp, tar)
+
+        if batch % 50 == 0:
+            print ('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
+                epoch + 1, batch, train_loss.result(), train_accuracy.result()))
       
-  if (epoch + 1) % 5 == 0:
-    ckpt_save_path = ckpt_manager.save()
-    print ('Saving checkpoint for epoch {} at {}'.format(epoch+1,
-                                                         ckpt_save_path))
+    if (epoch + 1) % 5 == 0:
+        ckpt_save_path = ckpt_manager.save()
+        print ('Saving checkpoint for epoch {} at {}'.format(epoch+1,
+                                                                ckpt_save_path))
     
-  print ('Epoch {} Loss {:.4f} Accuracy {:.4f}'.format(epoch + 1, 
+    print ('Epoch {} Loss {:.4f} Accuracy {:.4f}'.format(epoch + 1, 
                                                 train_loss.result(), 
                                                 train_accuracy.result()))
 
-  print ('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
-
+    print ('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
 
 # ==================================================================================================================
