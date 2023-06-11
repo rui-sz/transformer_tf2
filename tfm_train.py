@@ -19,22 +19,33 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from tfm_model import Encoder, Decoder, Transformer, CustomSchedule, create_padding_mask, create_look_ahead_mask
+from tfm_hparams import Hparams
+from tfm_data import load_data, load_local_data
+
+
+hparams = Hparams()
+parser = hparams.parser
+hp = parser.parse_args()
 
 
 # ==================================================================================================================
 # step1, 加载原始数据，tokenization
 
 # examples
-examples, metadata = tfds.load('ted_hrlr_translate/pt_to_en', with_info=True,
-                               as_supervised=True)
+#examples, metadata = load_data()
+fpath1="data/sample50w_paracrawl.wmt21.zh"
+fpath2="data/sample50w_paracrawl.wmt21.en"
+maxlen1=60
+maxlen2=60
+examples = load_local_data(fpath1,fpath2,maxlen1,maxlen2)
 train_examples, val_examples = examples['train'], examples['validation']
 
 
 # tokens
 tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
-    (en.numpy() for pt, en in train_examples), target_vocab_size=2**13)
+    (en for pt, en in train_examples), target_vocab_size=2**13)
 tokenizer_pt = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
-    (pt.numpy() for pt, en in train_examples), target_vocab_size=2**13)
+    (pt for pt, en in train_examples), target_vocab_size=2**13)
 
 # 测试 token 效果
 sample_string = 'Transformer is awesome.'
@@ -47,6 +58,7 @@ print ('The original string: {}'.format(original_string))
 assert original_string == sample_string
 for ts in tokenized_string:
     print ('{} ----> {}'.format(ts, tokenizer_en.decode([ts])))
+
 
 
 # ==================================================================================================================
@@ -99,7 +111,7 @@ print("pt_batch: ", pt_batch, "en_batch: ", en_batch)
 # ==================================================================================================================
 # step，创建 Transformer 对象
 
-num_layers = 4      # transformer 的层数
+num_layers = 6      # transformer 的层数
 d_model = 128       # emb 维数
 dff = 512           # ？
 num_heads = 8       # MHA 头的个数
