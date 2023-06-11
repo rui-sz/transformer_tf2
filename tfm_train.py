@@ -13,6 +13,7 @@
 
 import tensorflow_datasets as tfds
 import tensorflow as tf
+import sentencepiece as spm
 
 import time
 import numpy as np
@@ -20,7 +21,7 @@ import matplotlib.pyplot as plt
 
 from tfm_model import Encoder, Decoder, Transformer, CustomSchedule, create_padding_mask, create_look_ahead_mask
 from tfm_hparams import Hparams
-from tfm_data import load_data, load_local_data
+from tfm_data import load_data, load_local_data, load_vocab, tokenization
 
 
 hparams = Hparams()
@@ -40,7 +41,20 @@ maxlen2=60
 examples = load_local_data(fpath1,fpath2,maxlen1,maxlen2)
 train_examples, val_examples = examples['train'], examples['validation']
 
+# tokens
+vocab_fpath = "data/segmented/bpe.vocab"
+tokenizer_token2idx, tokenizer_idx2token = load_vocab(vocab_fpath)
 
+vocab_file = "data/segmented/bpe.model"
+sp = spm.SentencePieceProcessor()
+sp.load(vocab_file)
+
+sample_string = '我在坡县等你来！'
+tokenized_string = sp.encode_as_ids(sample_string.split())
+print ('Tokenized string is {}'.format(tokenized_string))
+print ("decoded string is: ", sp.decode_ids(tokenized_string))
+
+'''
 # tokens
 tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
     (en for pt, en in train_examples), target_vocab_size=2**13)
@@ -58,12 +72,32 @@ print ('The original string: {}'.format(original_string))
 assert original_string == sample_string
 for ts in tokenized_string:
     print ('{} ----> {}'.format(ts, tokenizer_en.decode([ts])))
-
+'''
 
 
 # ==================================================================================================================
 # step，处理 train 和 val 数据集
 
+def encode(lang1, lang2):
+    '''Converts string to number. Used for `generator_fn`.
+    inp: 1d byte array.
+    type: "x" (source side) or "y" (target side)
+    dict: token2idx dictionary
+
+    Returns
+    list of numbers
+    '''
+    lang1_str = lang1.numpy().decode("utf-8")
+    lang2_str = lang2.numpy().decode("utf-8")
+
+    tokens_lang1 = lang1_str + " </s>" #lang1_str.split() + ["</s>"]
+    tokens_lang2 = "<s> " + lang2_str + " </s>" #["<s>"] + lang2_str.split() + ["</s>"]
+
+    return sp.encode_as_ids(tokens_lang1), sp.encode_as_ids(tokens_lang2)
+
+    #return [tokenizer_token2idx.get(t, tokenizer_token2idx["<unk>"]) for t in tokens_lang1], [tokenizer_token2idx.get(t, tokenizer_token2idx["<unk>"]) for t in tokens_lang2]
+
+'''
 # pt, en
 def encode(lang1, lang2):
     # 问题：为什么要在 emb最开始加上 vocab_size？
@@ -74,6 +108,7 @@ def encode(lang1, lang2):
         lang2.numpy()) + [tokenizer_en.vocab_size+1]
 
     return lang1, lang2
+'''
 
 def tf_encode(pt, en):
     result_pt, result_en = tf.py_function(encode, [pt, en], [tf.int64, tf.int64])
@@ -88,8 +123,7 @@ BATCH_SIZE = 128
 MAX_LENGTH = 40   # 字符串最大长度
 
 def filter_max_length(x, y, max_length=MAX_LENGTH):
-    return tf.logical_and(tf.size(x) <= max_length,
-        tf.size(y) <= max_length)
+    return tf.logical_and(tf.size(x) <= max_length, tf.size(y) <= max_length)
 
 # tf_encode 的入参与 train_examples 中元素类型匹配
 train_dataset = train_examples.map(tf_encode)
@@ -99,13 +133,16 @@ train_dataset = train_dataset.cache()
 train_dataset = train_dataset.shuffle(BUFFER_SIZE).padded_batch(BATCH_SIZE)
 train_dataset = train_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
+for tmp in train_dataset.take(2):
+    pt, en = tmp
+    print(pt, en)
 
 val_dataset = val_examples.map(tf_encode)
 val_dataset = val_dataset.filter(filter_max_length).padded_batch(BATCH_SIZE)
 
-pt_batch, en_batch = next(iter(val_dataset))
-print("pt_batch: ", pt_batch, "en_batch: ", en_batch)
-
+for tmp in val_dataset.take(2):
+    pt, en = tmp
+    print(pt, en)
 
 
 # ==================================================================================================================
@@ -116,8 +153,8 @@ d_model = 128       # emb 维数
 dff = 512           # ？
 num_heads = 8       # MHA 头的个数
 
-input_vocab_size = tokenizer_pt.vocab_size + 2
-target_vocab_size = tokenizer_en.vocab_size + 2
+input_vocab_size = hp.vocab_size + 2
+target_vocab_size = hp.vocab_size + 2
 dropout_rate = 0.1
 
 print("after config hyperparameters, create optimizer")
@@ -168,6 +205,7 @@ def create_masks(inp, tar):
 
     return enc_padding_mask, combined_mask, dec_padding_mask
 
+'''
 checkpoint_path = "./checkpoints/train"
 
 ckpt = tf.train.Checkpoint(transformer=transformer,
@@ -179,7 +217,10 @@ ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
 if ckpt_manager.latest_checkpoint:
     ckpt.restore(ckpt_manager.latest_checkpoint)
     print ('Latest checkpoint restored!!')
+'''
 
+
+print("===============before train")
 
 # ==================================================================================================================
 # step9, train
@@ -231,9 +272,9 @@ for epoch in range(EPOCHS):
         if batch % 50 == 0:
             print ('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
                 epoch + 1, batch, train_loss.result(), train_accuracy.result()))
-      
+    
     if (epoch + 1) % 5 == 0:
-        ckpt_save_path = ckpt_manager.save()
+        #ckpt_save_path = ckpt_manager.save()
         print ('Saving checkpoint for epoch {} at {}'.format(epoch+1,
                                                                 ckpt_save_path))
     
@@ -250,8 +291,8 @@ for epoch in range(EPOCHS):
 print("evaluate")
 
 def evaluate(inp_sentence):
-  start_token = [tokenizer_pt.vocab_size]
-  end_token = [tokenizer_pt.vocab_size + 1]
+  start_token = [hp.vocab_size]
+  end_token = [hp.vocab_size + 1]
   
   # 输入语句是葡萄牙语，增加开始和结束标记
   inp_sentence = start_token + tokenizer_pt.encode(inp_sentence) + end_token

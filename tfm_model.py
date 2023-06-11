@@ -35,13 +35,14 @@ pos_encoding = positional_encoding(50, 512)
 print("pos_encoding: ", pos_encoding.shape)
 
 
+'''
 plt.pcolormesh(pos_encoding[0], cmap='RdBu')
 plt.xlabel('Depth')
 plt.xlim((0, 512))
 plt.ylabel('Position')
 plt.colorbar()
 plt.show()
-
+'''
 
 # ==================================================================================================================
 # step4，masking
