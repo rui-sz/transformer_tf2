@@ -36,8 +36,8 @@ hp = parser.parse_args()
 #examples, metadata = load_data()
 fpath1="data/sample50w_paracrawl.wmt21.zh"
 fpath2="data/sample50w_paracrawl.wmt21.en"
-maxlen1=60
-maxlen2=60
+maxlen1=hp.maxlen
+maxlen2=hp.maxlen
 examples = load_local_data(fpath1,fpath2,maxlen1,maxlen2)
 train_examples, val_examples = examples['train'], examples['validation']
 
@@ -186,7 +186,7 @@ print("===============before train")
 # ==================================================================================================================
 # step9, train
 
-EPOCHS = 3
+EPOCHS = hp.epoch
 
 # 该 @tf.function 将追踪-编译 train_step 到 TF 图中，以便更快地
 # 执行。该函数专用于参数张量的精确形状。为了避免由于可变序列长度或可变

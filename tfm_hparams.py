@@ -7,9 +7,10 @@ class Hparams:
     parser.add_argument('--vocab_size', default=32000, type=int)
 
     # train
+    parser.add_argument('--epoch', default=6, type=int)
     parser.add_argument('--buffer_size', default=20000, type=int)
     parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--maxlen', default=40, type=int, help="maximum length of a source sequence")
+    parser.add_argument('--maxlen', default=60, type=int, help="maximum length of a source sequence")
     parser.add_argument('--eval_batch_size', default=128, type=int)
 
     parser.add_argument('--train_src1', default='data/sample50w_paracrawl.wmt21.zh',
