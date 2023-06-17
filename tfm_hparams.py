@@ -25,15 +25,15 @@ class Hparams:
 
 
     # model
-    parser.add_argument('--num_layers', default=4, type=int,
+    parser.add_argument('--num_layers', default=8, type=int,
                         help="hidden dimension of encoder/decoder")
-    parser.add_argument('--d_model', default=128, type=int,
+    parser.add_argument('--d_model', default=256, type=int,
                         help="hidden dimension of encoder/decoder")
-    parser.add_argument('--d_ff', default=512, type=int,
+    parser.add_argument('--d_ff', default=1024, type=int,
                         help="hidden dimension of feedforward layer")
     parser.add_argument('--num_blocks', default=6, type=int,
                         help="number of encoder/decoder blocks")
-    parser.add_argument('--num_heads', default=4, type=int,
+    parser.add_argument('--num_heads', default=8, type=int,
                         help="number of attention heads")
 
     #########################################################################################################
