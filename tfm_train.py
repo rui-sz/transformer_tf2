@@ -341,10 +341,20 @@ print ("Real translation: this is a problem we have to solve.")
 translate("我邻居的家庭听到了这个主意")
 print ("Real translation: and my neighboring homes heard about this idea.")
 
+translate("所以不得不说我做了一件非常正确的事情。")
+print ("Real translation: So I have to say that I did a very correct thing.")
+
 translate("所以我刚刚给你们分享了一些很神奇的故事")
-print ("Real translation: so i'll just share with you some stories very quickly of some magical things that have happened .")
+print ("Real translation: So I just shared some amazing stories with you")
+
+translate("所以我将很快与大家分享一些神奇的故事。")
+print ("Real translation: so i'll just share with you some stories very quickly of some magical things that have happened.")
 
 #translate("este é o primeiro livro que eu fiz.", plot='decoder_layer4_block2')
 translate("这是我完成写作的第一本书")
 print ("Real translation: this is the first book i've ever done.")
+
+translate("尽管从整体而言，何洁目前还算不上减肥彻底成功，身材仍略显丰满，但能到这个程度，也足以说明何洁在减肥上下了很大的功夫。")
+print ("Real translation: Although overall, He Jie is not yet considered a complete success in weight loss and still has a slightly plump figure, reaching this level is enough to indicate that He Jie has put a lot of effort into weight loss.")
+
 
