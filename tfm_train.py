@@ -327,7 +327,7 @@ def plot_attention_weights(attention, sentence, result, layer):
 def translate(sentence, plot=''):
     result, attention_weights = evaluate(sentence)
 
-    res_arr = [ i for i in result.numpy() if i<hp.hp.vocab_size ]
+    res_arr = [ int(i) for i in result.numpy() if i<hp.vocab_size ]
     predicted_sentence = sp.decode_ids( res_arr )  
 
     print('Input: {}'.format(sentence))
