@@ -85,7 +85,7 @@ def tf_encode(pt, en):
 
 
 BUFFER_SIZE = 20000
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 MAX_LENGTH = 40   # 字符串最大长度
 
 def filter_max_length(x, y, max_length=MAX_LENGTH):
@@ -187,7 +187,7 @@ print("===============before train")
 # ==================================================================================================================
 # step9, train
 
-EPOCHS = 20
+EPOCHS = 1
 
 # 该 @tf.function 将追踪-编译 train_step 到 TF 图中，以便更快地
 # 执行。该函数专用于参数张量的精确形状。为了避免由于可变序列长度或可变
@@ -253,15 +253,11 @@ for epoch in range(EPOCHS):
 print("evaluate")
 
 def evaluate(inp_sentence):
-    start_token = [hp.vocab_size]
-    end_token = [hp.vocab_size + 1]
-
     # 输入语句是葡萄牙语，增加开始和结束标记
-    inp_sentence = start_token + sp.encode_as_ids(inp_sentence) + end_token
+    inp_sentence = [hp.vocab_size] + sp.encode_as_ids(inp_sentence) + [hp.vocab_size + 1]
     encoder_input = tf.expand_dims(inp_sentence, 0)
 
-    # 因为目标是英语，输入 transformer 的第一个词应该是
-    # 英语的开始标记。
+    # 因为目标是英语，输入 transformer 的第一个词应该是英语的开始标记。
     decoder_input = [hp.vocab_size+2]
     output = tf.expand_dims(decoder_input, 0)
     
@@ -280,14 +276,14 @@ def evaluate(inp_sentence):
         # 从 seq_len 维度选择最后一个词
         predictions = predictions[: ,-1:, :]  # (batch_size, 1, vocab_size)
 
-    predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
+        predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
 
-    # 如果 predicted_id 等于结束标记，就返回结果
-    if predicted_id == hp.vocab_size+3:
-        return tf.squeeze(output, axis=0), attention_weights
+        # 如果 predicted_id 等于结束标记，就返回结果
+        if predicted_id == hp.vocab_size+3:
+            return tf.squeeze(output, axis=0), attention_weights
 
-    # 连接 predicted_id 与输出，作为解码器的输入传递到解码器。
-    output = tf.concat([output, predicted_id], axis=-1)
+        # 连接 predicted_id 与输出，作为解码器的输入传递到解码器。
+        output = tf.concat([output, predicted_id], axis=-1)
 
     return tf.squeeze(output, axis=0), attention_weights
 
@@ -332,7 +328,7 @@ def translate(sentence, plot=''):
     result, attention_weights = evaluate(sentence)
 
     print("translate result: ", result, sentence)
-    predicted_sentence = sp.decode_ids(result)  
+    predicted_sentence = sp.decode_ids(result.numpy())  
 
     print('Input: {}'.format(sentence))
     print('Predicted translation: {}'.format(predicted_sentence))
