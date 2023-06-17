@@ -10,8 +10,8 @@ def prepro(hp):
     hp: hyperparams. argparse.
     """
     logging.info("# Check if raw files exist")
-    train1 = "data/sample50w_paracrawl.wmt21.zh"
-    train2 = "data/sample50w_paracrawl.wmt21.en"
+    train1 = hp.train_src1 #"data/sample50w_paracrawl.wmt21.zh"
+    train2 = hp.train_src2 #"data/sample50w_paracrawl.wmt21.en"
 
     for f in (train1, train2):
         if not os.path.isfile(f):
@@ -59,12 +59,12 @@ def prepro(hp):
                 pieces = sp.EncodeAsPieces(sent)
                 fout.write(" ".join(pieces) + "\n")
 
-    _segment_and_write(prepro_train1, "data/segmented/train.zh.bpe")
-    _segment_and_write(prepro_train2, "data/segmented/train.en.bpe")
+    _segment_and_write(prepro_train1, hp.train1)
+    _segment_and_write(prepro_train2, hp.train2)
 
-    logging.info("Let's see how segmented data look like")
-    print("train1:", open("data/segmented/train.zh.bpe",'r').readline())
-    print("train2:", open("data/segmented/train.en.bpe", 'r').readline())
+    print("===Let's see how segmented data look like")
+    print("train1: ", open(hp.train1,'r').readline())
+    print("train2: ", open(hp.train2, 'r').readline())
 
 
 if __name__ == '__main__':
