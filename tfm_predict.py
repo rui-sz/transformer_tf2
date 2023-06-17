@@ -181,8 +181,9 @@ if ckpt_manager.latest_checkpoint:
     print ('Latest checkpoint restored!!')
 
 
-print("===============before train")
+print("===============before evaluate")
 
+'''
 # ==================================================================================================================
 # step9, train
 
@@ -234,7 +235,7 @@ for epoch in range(EPOCHS):
             print ('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
                 epoch + 1, batch, train_loss.result(), train_accuracy.result()))
     
-    if (epoch + 1) % 3 == 0:
+    if (epoch + 1) % 5 == 0:
         ckpt_save_path = ckpt_manager.save()
         print ('Saving checkpoint for epoch {} at {}'.format(epoch+1,
                                                                 ckpt_save_path))
@@ -245,6 +246,7 @@ for epoch in range(EPOCHS):
 
     print ('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
+'''
 
 # ==================================================================================================================
 # step10, evaluate
