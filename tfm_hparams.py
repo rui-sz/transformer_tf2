@@ -7,9 +7,9 @@ class Hparams:
     parser.add_argument('--vocab_size', default=32000, type=int)
 
     # train
-    parser.add_argument('--epoch', default=10, type=int)
+    parser.add_argument('--epoch', default=20, type=int)
     parser.add_argument('--buffer_size', default=20000, type=int)
-    parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--maxlen', default=60, type=int, help="maximum length of a source sequence")
     parser.add_argument('--eval_batch_size', default=128, type=int)
 
@@ -23,7 +23,6 @@ class Hparams:
     parser.add_argument('--train2', default='data/segmented/train.en.bpe',
                              help="english training segmented data")
 
-
     # model
     parser.add_argument('--num_layers', default=4, type=int,
                         help="hidden dimension of encoder/decoder")
@@ -31,10 +30,11 @@ class Hparams:
                         help="hidden dimension of encoder/decoder")
     parser.add_argument('--d_ff', default=512, type=int,
                         help="hidden dimension of feedforward layer")
-    parser.add_argument('--num_blocks', default=6, type=int,
-                        help="number of encoder/decoder blocks")
     parser.add_argument('--num_heads', default=4, type=int,
                         help="number of attention heads")
+    
+    parser.add_argument('--num_blocks', default=6, type=int,
+                        help="number of encoder/decoder blocks")
 
     #########################################################################################################
 
@@ -64,7 +64,7 @@ class Hparams:
                         help="maximum length of a source sequence")
     parser.add_argument('--maxlen2', default=100, type=int,
                         help="maximum length of a target sequence")
-    parser.add_argument('--dropout_rate', default=0.3, type=float)
+    parser.add_argument('--dropout_rate', default=0.1, type=float)
     parser.add_argument('--smoothing', default=0.1, type=float,
                         help="label smoothing rate")
 
