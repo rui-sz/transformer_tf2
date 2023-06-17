@@ -6,12 +6,22 @@ class Hparams:
     # prepro
     parser.add_argument('--vocab_size', default=32000, type=int)
 
-    # tf2.0
-    parser.add_argument('--train1', default='data/iwslt2016/segmented/train.de.bpe',
+    # train
+    parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--eval_batch_size', default=128, type=int)
+
+    parser.add_argument('--train_src1', default='data/sample50w_paracrawl.wmt21.zh',
+                             help="chinese training data")
+    parser.add_argument('--train_src2', default='data/sample50w_paracrawl.wmt21.en',
+                             help="english training data")
+
+    parser.add_argument('--train1', default='data/segmented/train.zh.bpe',
                              help="chinese training segmented data")
-    parser.add_argument('--train2', default='data/iwslt2016/segmented/train.en.bpe',
+    parser.add_argument('--train2', default='data/segmented/train.en.bpe',
                              help="english training segmented data")
 
+
+    #########################################################################################################
 
     # train
     ## files
@@ -27,8 +37,6 @@ class Hparams:
                         help="vocabulary file path")
 
     # training scheme
-    parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--eval_batch_size', default=128, type=int)
 
     parser.add_argument('--lr', default=0.0003, type=float, help="learning rate")
     parser.add_argument('--warmup_steps', default=4000, type=int)
