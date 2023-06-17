@@ -119,7 +119,7 @@ def tf_encode(pt, en):
 
 
 BUFFER_SIZE = 20000
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 MAX_LENGTH = 40   # 字符串最大长度
 
 def filter_max_length(x, y, max_length=MAX_LENGTH):
@@ -148,10 +148,10 @@ for tmp in val_dataset.take(2):
 # ==================================================================================================================
 # step，创建 Transformer 对象
 
-num_layers = 6      # transformer 的层数
+num_layers = 4      # transformer 的层数
 d_model = 128       # emb 维数
 dff = 512           # ？
-num_heads = 8       # MHA 头的个数
+num_heads = 4       # MHA 头的个数
 
 input_vocab_size = hp.vocab_size + 2
 target_vocab_size = hp.vocab_size + 2
@@ -269,12 +269,12 @@ for epoch in range(EPOCHS):
     for (batch, (inp, tar)) in enumerate(train_dataset):
         train_step(inp, tar)
 
-        if batch % 50 == 0:
+        if batch % 100 == 0:
             print ('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
                 epoch + 1, batch, train_loss.result(), train_accuracy.result()))
     
     if (epoch + 1) % 5 == 0:
-        #ckpt_save_path = ckpt_manager.save()
+        ckpt_save_path = ckpt_manager.save()
         print ('Saving checkpoint for epoch {} at {}'.format(epoch+1,
                                                                 ckpt_save_path))
     
@@ -295,12 +295,12 @@ def evaluate(inp_sentence):
   end_token = [hp.vocab_size + 1]
   
   # 输入语句是葡萄牙语，增加开始和结束标记
-  inp_sentence = start_token + tokenizer_pt.encode(inp_sentence) + end_token
+  inp_sentence = start_token + sp.encode_as_ids(inp_sentence) + end_token
   encoder_input = tf.expand_dims(inp_sentence, 0)
   
   # 因为目标是英语，输入 transformer 的第一个词应该是
   # 英语的开始标记。
-  decoder_input = [tokenizer_en.vocab_size]
+  decoder_input = [hp.vocab_size]
   output = tf.expand_dims(decoder_input, 0)
     
   for i in range(MAX_LENGTH):
@@ -321,7 +321,7 @@ def evaluate(inp_sentence):
     predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
     
     # 如果 predicted_id 等于结束标记，就返回结果
-    if predicted_id == tokenizer_en.vocab_size+1:
+    if predicted_id == hp.vocab_size+1:
       return tf.squeeze(output, axis=0), attention_weights
     
     # 连接 predicted_id 与输出，作为解码器的输入传递到解码器。
@@ -378,16 +378,16 @@ def translate(sentence, plot=''):
     if plot:
         plot_attention_weights(attention_weights, sentence, result, plot)
 
-translate("este é um problema que temos que resolver.")
-print ("Real translation: this is a problem we have to solve .")
+translate("这真的是一个我们面临的问题")
+print ("Real translation: this is a problem we have to solve.")
 
-translate("os meus vizinhos ouviram sobre esta ideia.")
-print ("Real translation: and my neighboring homes heard about this idea .")
+translate("我邻居的家庭听到了这个主意")
+print ("Real translation: and my neighboring homes heard about this idea.")
 
-translate("vou então muito rapidamente partilhar convosco algumas histórias de algumas coisas mágicas que aconteceram.")
-print ("Real translation: so i 'll just share with you some stories very quickly of some magical things that have happened .")
+translate("所以我刚刚给你们分享了一些很神奇的故事")
+print ("Real translation: so i'll just share with you some stories very quickly of some magical things that have happened .")
 
 #translate("este é o primeiro livro que eu fiz.", plot='decoder_layer4_block2')
-translate("este é o primeiro livro que eu fiz.")
+translate("这是我完成写作的第一本书")
 print ("Real translation: this is the first book i've ever done.")
 
