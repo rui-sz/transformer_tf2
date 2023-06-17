@@ -54,26 +54,6 @@ tokenized_string = sp.encode_as_ids(sample_string)
 print ('Tokenized string is {}'.format(tokenized_string))
 print ("decoded string is: ", sp.decode_ids(tokenized_string))
 
-'''
-# tokens
-tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
-    (en for pt, en in train_examples), target_vocab_size=2**13)
-tokenizer_pt = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
-    (pt for pt, en in train_examples), target_vocab_size=2**13)
-
-# 测试 token 效果
-sample_string = 'Transformer is awesome.'
-tokenized_string = tokenizer_en.encode(sample_string)
-print ('Tokenized string is {}'.format(tokenized_string))
-# Tokenized string is [7915, 1248, 7946, 7194, 13, 2799, 7877]
-original_string = tokenizer_en.decode(tokenized_string)
-print ('The original string: {}'.format(original_string))
-# The original string: Transformer is awesome.
-assert original_string == sample_string
-for ts in tokenized_string:
-    print ('{} ----> {}'.format(ts, tokenizer_en.decode([ts])))
-'''
-
 
 # ==================================================================================================================
 # step，处理 train 和 val 数据集
@@ -90,28 +70,11 @@ def encode(lang1, lang2):
     lang1_str = lang1.numpy().decode("utf-8")
     lang2_str = lang2.numpy().decode("utf-8")
 
-    #tokens_lang1 = lang1_str + " </s>" #lang1_str.split() + ["</s>"]
-    #tokens_lang2 = "<s> " + lang2_str + " </s>" #["<s>"] + lang2_str.split() + ["</s>"]
-
-    lang1_lst = sp.encode_as_ids(lang1_str) + [0]
-    lang2_lst = [0] + sp.encode_as_ids(lang2_str) + [0]
+    # 不同的开始和结束标记
+    lang1_lst = [hp.vocab_size] + sp.encode_as_ids(lang1_str) + [hp.vocab_size+1]
+    lang2_lst = [hp.vocab_size+2] + sp.encode_as_ids(lang2_str) + [hp.vocab_size+3]
 
     return lang1_lst, lang2_lst
-
-    #return [tokenizer_token2idx.get(t, tokenizer_token2idx["<unk>"]) for t in tokens_lang1], [tokenizer_token2idx.get(t, tokenizer_token2idx["<unk>"]) for t in tokens_lang2]
-
-'''
-# pt, en
-def encode(lang1, lang2):
-    # 问题：为什么要在 emb最开始加上 vocab_size？
-    lang1 = [tokenizer_pt.vocab_size] + tokenizer_pt.encode(
-        lang1.numpy()) + [tokenizer_pt.vocab_size+1]
-
-    lang2 = [tokenizer_en.vocab_size] + tokenizer_en.encode(
-        lang2.numpy()) + [tokenizer_en.vocab_size+1]
-
-    return lang1, lang2
-'''
 
 def tf_encode(pt, en):
     result_pt, result_en = tf.py_function(encode, [pt, en], [tf.int64, tf.int64])
@@ -133,7 +96,7 @@ train_dataset = train_examples.map(tf_encode)
 train_dataset = train_dataset.filter(filter_max_length)
 # 将数据集缓存到内存中以加快读取速度。
 train_dataset = train_dataset.cache()
-train_dataset = train_dataset.shuffle(BUFFER_SIZE).padded_batch(BATCH_SIZE)
+train_dataset = train_dataset.shuffle(BUFFER_SIZE,seed=53).padded_batch(BATCH_SIZE)
 train_dataset = train_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
 for tmp in train_dataset.take(2):
@@ -142,10 +105,6 @@ for tmp in train_dataset.take(2):
 
 val_dataset = val_examples.map(tf_encode)
 val_dataset = val_dataset.filter(filter_max_length).padded_batch(BATCH_SIZE)
-
-for tmp in val_dataset.take(2):
-    pt, en = tmp
-    print(pt, en)
 
 
 # ==================================================================================================================
@@ -156,8 +115,8 @@ d_model = 128       # emb 维数
 dff = 512           # ？
 num_heads = 4       # MHA 头的个数
 
-input_vocab_size = hp.vocab_size + 2
-target_vocab_size = hp.vocab_size + 2
+input_vocab_size = hp.vocab_size + 4
+target_vocab_size = hp.vocab_size + 4
 dropout_rate = 0.1
 
 print("after config hyperparameters, create optimizer")
@@ -303,7 +262,7 @@ def evaluate(inp_sentence):
 
     # 因为目标是英语，输入 transformer 的第一个词应该是
     # 英语的开始标记。
-    decoder_input = [hp.vocab_size]
+    decoder_input = [hp.vocab_size+2]
     output = tf.expand_dims(decoder_input, 0)
     
     for i in range(MAX_LENGTH):
@@ -324,7 +283,7 @@ def evaluate(inp_sentence):
     predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
 
     # 如果 predicted_id 等于结束标记，就返回结果
-    if predicted_id == hp.vocab_size+1:
+    if predicted_id == hp.vocab_size+3:
         return tf.squeeze(output, axis=0), attention_weights
 
     # 连接 predicted_id 与输出，作为解码器的输入传递到解码器。
