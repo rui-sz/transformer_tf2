@@ -49,7 +49,7 @@ def load_vocab(vocab_fpath):
     two dictionaries.
     '''
     vocab = [line.split()[0] for line in open(vocab_fpath, 'r').read().splitlines()]
-    print(vocab[0:10])
+    print("head 10 of vocab: ", vocab[0:10])
     token2idx = {token: idx for idx, token in enumerate(vocab)}
     idx2token = {idx: token for idx, token in enumerate(vocab)}
 

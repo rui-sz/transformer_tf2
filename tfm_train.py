@@ -50,7 +50,7 @@ sp = spm.SentencePieceProcessor()
 sp.load(vocab_file)
 
 sample_string = '我在坡县等你来！'
-tokenized_string = sp.encode_as_ids(sample_string.split())
+tokenized_string = sp.encode_as_ids(sample_string)
 print ('Tokenized string is {}'.format(tokenized_string))
 print ("decoded string is: ", sp.decode_ids(tokenized_string))
 
@@ -90,10 +90,13 @@ def encode(lang1, lang2):
     lang1_str = lang1.numpy().decode("utf-8")
     lang2_str = lang2.numpy().decode("utf-8")
 
-    tokens_lang1 = lang1_str + " </s>" #lang1_str.split() + ["</s>"]
-    tokens_lang2 = "<s> " + lang2_str + " </s>" #["<s>"] + lang2_str.split() + ["</s>"]
+    #tokens_lang1 = lang1_str + " </s>" #lang1_str.split() + ["</s>"]
+    #tokens_lang2 = "<s> " + lang2_str + " </s>" #["<s>"] + lang2_str.split() + ["</s>"]
 
-    return sp.encode_as_ids(tokens_lang1), sp.encode_as_ids(tokens_lang2)
+    lang1_lst = sp.encode_as_ids(lang1_str) + [0]
+    lang2_lst = [0] + sp.encode_as_ids(lang2_str) + [0]
+
+    return lang1_lst, lang2_lst
 
     #return [tokenizer_token2idx.get(t, tokenizer_token2idx["<unk>"]) for t in tokens_lang1], [tokenizer_token2idx.get(t, tokenizer_token2idx["<unk>"]) for t in tokens_lang2]
 
@@ -291,43 +294,43 @@ for epoch in range(EPOCHS):
 print("evaluate")
 
 def evaluate(inp_sentence):
-  start_token = [hp.vocab_size]
-  end_token = [hp.vocab_size + 1]
-  
-  # 输入语句是葡萄牙语，增加开始和结束标记
-  inp_sentence = start_token + sp.encode_as_ids(inp_sentence) + end_token
-  encoder_input = tf.expand_dims(inp_sentence, 0)
-  
-  # 因为目标是英语，输入 transformer 的第一个词应该是
-  # 英语的开始标记。
-  decoder_input = [hp.vocab_size]
-  output = tf.expand_dims(decoder_input, 0)
+    start_token = [hp.vocab_size]
+    end_token = [hp.vocab_size + 1]
+
+    # 输入语句是葡萄牙语，增加开始和结束标记
+    inp_sentence = start_token + sp.encode_as_ids(inp_sentence) + end_token
+    encoder_input = tf.expand_dims(inp_sentence, 0)
+
+    # 因为目标是英语，输入 transformer 的第一个词应该是
+    # 英语的开始标记。
+    decoder_input = [hp.vocab_size]
+    output = tf.expand_dims(decoder_input, 0)
     
-  for i in range(MAX_LENGTH):
-    enc_padding_mask, combined_mask, dec_padding_mask = create_masks(
-        encoder_input, output)
-  
-    # predictions.shape == (batch_size, seq_len, vocab_size)
-    predictions, attention_weights = transformer(encoder_input, 
-                                                 output,
-                                                 False,
-                                                 enc_padding_mask,
-                                                 combined_mask,
-                                                 dec_padding_mask)
-    
-    # 从 seq_len 维度选择最后一个词
-    predictions = predictions[: ,-1:, :]  # (batch_size, 1, vocab_size)
+    for i in range(MAX_LENGTH):
+        enc_padding_mask, combined_mask, dec_padding_mask = create_masks(
+            encoder_input, output)
+
+        # predictions.shape == (batch_size, seq_len, vocab_size)
+        predictions, attention_weights = transformer(encoder_input, 
+                                                        output,
+                                                        False,
+                                                        enc_padding_mask,
+                                                        combined_mask,
+                                                        dec_padding_mask)
+
+        # 从 seq_len 维度选择最后一个词
+        predictions = predictions[: ,-1:, :]  # (batch_size, 1, vocab_size)
 
     predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
-    
+
     # 如果 predicted_id 等于结束标记，就返回结果
     if predicted_id == hp.vocab_size+1:
-      return tf.squeeze(output, axis=0), attention_weights
-    
+        return tf.squeeze(output, axis=0), attention_weights
+
     # 连接 predicted_id 与输出，作为解码器的输入传递到解码器。
     output = tf.concat([output, predicted_id], axis=-1)
 
-  return tf.squeeze(output, axis=0), attention_weights
+    return tf.squeeze(output, axis=0), attention_weights
 
 def plot_attention_weights(attention, sentence, result, layer):
     fig = plt.figure(figsize=(16, 8))
@@ -369,8 +372,7 @@ def plot_attention_weights(attention, sentence, result, layer):
 def translate(sentence, plot=''):
     result, attention_weights = evaluate(sentence)
 
-    predicted_sentence = tokenizer_en.decode([i for i in result 
-                                            if i < tokenizer_en.vocab_size])  
+    predicted_sentence = sp.decode_ids(result)  
 
     print('Input: {}'.format(sentence))
     print('Predicted translation: {}'.format(predicted_sentence))
