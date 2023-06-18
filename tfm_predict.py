@@ -36,23 +36,36 @@ hp = parser.parse_args()
 #examples, metadata = load_data()
 fpath1="data/sample50w_paracrawl.wmt21.zh"
 fpath2="data/sample50w_paracrawl.wmt21.en"
-maxlen1=60
-maxlen2=60
+maxlen1=hp.maxlen
+maxlen2=hp.maxlen
 examples = load_local_data(fpath1,fpath2,maxlen1,maxlen2)
 train_examples, val_examples = examples['train'], examples['validation']
 
 # tokens
 vocab_fpath = "data/segmented/bpe.vocab"
-tokenizer_token2idx, tokenizer_idx2token = load_vocab(vocab_fpath)
+#tokenizer_token2idx, tokenizer_idx2token = load_vocab(vocab_fpath)
 
 vocab_file = "data/segmented/bpe.model"
-sp = spm.SentencePieceProcessor()
-sp.load(vocab_file)
+#sp = spm.SentencePieceProcessor()
+#sp.load(vocab_file)
 
-sample_string = '我在坡县等你来！'
-tokenized_string = sp.encode_as_ids(sample_string)
+print("===tokenlization1")
+# 对应zh
+tokenizer_pt = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
+    (pt.numpy() for pt, en in train_examples), target_vocab_size=2**13)
+
+print("===tokenlization2")
+
+tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
+    (en.numpy() for pt, en in train_examples), target_vocab_size=2**13)
+
+sample_string = '我爱中华人民共和国。'
+tokenized_string = tokenizer_pt.encode(sample_string)
 print ('Tokenized string is {}'.format(tokenized_string))
-print ("decoded string is: ", sp.decode_ids(tokenized_string))
+original_string = tokenizer_pt.decode(tokenized_string)
+print ('The original string: {}'.format(original_string))
+
+assert original_string == sample_string
 
 
 # ==================================================================================================================
@@ -67,6 +80,7 @@ def encode(lang1, lang2):
     Returns
     list of numbers
     '''
+    '''
     lang1_str = lang1.numpy().decode("utf-8")
     lang2_str = lang2.numpy().decode("utf-8")
 
@@ -75,6 +89,15 @@ def encode(lang1, lang2):
     lang2_lst = [hp.vocab_size+2] + sp.encode_as_ids(lang2_str) + [hp.vocab_size+3]
 
     return lang1_lst, lang2_lst
+    '''
+
+    lang1 = [tokenizer_pt.vocab_size] + tokenizer_pt.encode(
+        lang1.numpy()) + [tokenizer_pt.vocab_size+1]
+
+    lang2 = [tokenizer_en.vocab_size] + tokenizer_en.encode(
+        lang2.numpy()) + [tokenizer_en.vocab_size+1]
+  
+    return lang1, lang2
 
 def tf_encode(pt, en):
     result_pt, result_en = tf.py_function(encode, [pt, en], [tf.int64, tf.int64])
@@ -255,11 +278,17 @@ print("evaluate")
 
 def evaluate(inp_sentence):
     # 输入语句是葡萄牙语，增加开始和结束标记
-    inp_sentence = [hp.vocab_size] + sp.encode_as_ids(inp_sentence) + [hp.vocab_size + 1]
+    #inp_sentence = [hp.vocab_size] + sp.encode_as_ids(inp_sentence) + [hp.vocab_size + 1]
+    #encoder_input = tf.expand_dims(inp_sentence, 0)
+    start_token = [tokenizer_pt.vocab_size]
+    end_token = [tokenizer_pt.vocab_size + 1]
+    # 输入语句是葡萄牙语，增加开始和结束标记
+    inp_sentence = start_token + tokenizer_pt.encode(inp_sentence) + end_token
     encoder_input = tf.expand_dims(inp_sentence, 0)
 
+
     # 因为目标是英语，输入 transformer 的第一个词应该是英语的开始标记。
-    decoder_input = [hp.vocab_size+2]
+    decoder_input = [tokenizer_en.vocab_size]
     output = tf.expand_dims(decoder_input, 0)
     
     for i in range(MAX_LENGTH):
@@ -328,8 +357,10 @@ def plot_attention_weights(attention, sentence, result, layer):
 def translate(sentence, plot=''):
     result, attention_weights = evaluate(sentence)
 
-    res_arr = [ int(i) for i in result.numpy() if i<hp.vocab_size ]
-    predicted_sentence = sp.decode_ids( res_arr )  
+    #res_arr = [ int(i) for i in result.numpy() if i<hp.vocab_size ]
+    #predicted_sentence = sp.decode_ids( res_arr )  
+    predicted_sentence = tokenizer_en.decode([i for i in result 
+                                            if i < tokenizer_en.vocab_size])
 
     print('Input: {}'.format(sentence))
     print('Predicted translation: {}'.format(predicted_sentence))
