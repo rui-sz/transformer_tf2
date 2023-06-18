@@ -368,6 +368,12 @@ def translate(sentence, plot=''):
     if plot:
         plot_attention_weights(attention_weights, sentence, result, plot)
 
+translate("你们男人敢吗?")
+print ("Real translation: Do you like me?")
+
+translate("购买数量:")
+print ("Real translation: number of tests")
+
 translate("这真的是一个我们面临的问题")
 print ("Real translation: this is a problem we have to solve.")
 
