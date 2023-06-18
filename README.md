@@ -2,9 +2,9 @@
 
 ## Brief
 
-    This is a Concise implementation of Transformer translator in the environment of Tensorflow 2.x. The background is I couldn't find a TF2.x implement of Transformer when I want to repeat the code of paper: Attention is All you need and do some experiments.
+This is a Concise implementation of Transformer translator in the environment of Tensorflow 2.x. The background is I couldn't find a TF2.x implement of Transformer when I want to repeat the code of paper: Attention is All you need and do some experiments.
 
-    After I searched in github for a while, it seems that I have to write one by my self, and this final version is based on the mixture of[example](https://www.tensorflow.org/tutorials/text/transformer?hl=zh-cn) on TF2.0 website and Kyubyong's [version](https://github.com/Kyubyong/transformer).
+After I searched in github for a while, it seems that I have to write one by my self, and this final version is based on the mixture of[example](https://www.tensorflow.org/tutorials/text/transformer?hl=zh-cn) on TF2.0 website and Kyubyong's [version](https://github.com/Kyubyong/transformer).
 
 ## Requirements
 
