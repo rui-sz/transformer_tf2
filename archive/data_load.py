@@ -10,7 +10,7 @@ if safe, entities on the source side have the prefix 1, and the target side 2, f
 For example, fpath1, fpath2 means source file path and target file path, respectively.
 '''
 import tensorflow as tf
-from utils import calc_num_batches
+from archive.utils import calc_num_batches
 
 def load_vocab(vocab_fpath):
     '''Loads vocabulary file and returns idx<->token maps

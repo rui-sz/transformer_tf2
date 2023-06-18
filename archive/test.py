@@ -12,10 +12,10 @@ import os
 
 import tensorflow as tf
 
-from data_load import get_batch
-from model import Transformer
-from hparams import Hparams
-from utils import get_hypotheses, calc_bleu, postprocess, load_hparams
+from archive.data_load import get_batch
+from archive.model import Transformer
+from archive.hparams import Hparams
+from archive.utils import get_hypotheses, calc_bleu, postprocess, load_hparams
 import logging
 
 logging.basicConfig(level=logging.INFO)

@@ -50,11 +50,12 @@ sample_string = '我在坡县等你来！'
 #print ('Tokenized string is {}'.format(tokenized_string))
 #print ("decoded string is: ", sp.decode_ids(tokenized_string))
 
-print("===tokenlization")
-
+print("===tokenlization1")
 # 对应zh
 tokenizer_pt = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
     (pt.numpy() for pt, en in train_examples), target_vocab_size=2**13)
+
+print("===tokenlization2")
 
 tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
     (en.numpy() for pt, en in train_examples), target_vocab_size=2**13)

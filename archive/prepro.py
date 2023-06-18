@@ -12,7 +12,7 @@ import os
 import errno
 import sentencepiece as spm
 import re
-from hparams import Hparams
+from archive.hparams import Hparams
 import logging
 
 logging.basicConfig(level=logging.INFO)

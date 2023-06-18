@@ -9,9 +9,9 @@ Transformer network
 '''
 import tensorflow as tf
 
-from data_load import load_vocab
-from modules import get_token_embeddings, ff, positional_encoding, multihead_attention, label_smoothing, noam_scheme
-from utils import convert_idx_to_token_tensor
+from archive.data_load import load_vocab
+from archive.modules import get_token_embeddings, ff, positional_encoding, multihead_attention, label_smoothing, noam_scheme
+from archive.utils import convert_idx_to_token_tensor
 from tqdm import tqdm
 import logging
 

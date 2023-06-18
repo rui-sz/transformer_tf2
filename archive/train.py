@@ -7,12 +7,12 @@ https://www.github.com/kyubyong/transformer
 '''
 import tensorflow as tf
 
-from model import Transformer
+from archive.model import Transformer
 from tqdm import tqdm
-from data_load import get_batch
-from utils import save_hparams, save_variable_specs, get_hypotheses, calc_bleu
+from archive.data_load import get_batch
+from archive.utils import save_hparams, save_variable_specs, get_hypotheses, calc_bleu
 import os
-from hparams import Hparams
+from archive.hparams import Hparams
 import math
 import logging
 
